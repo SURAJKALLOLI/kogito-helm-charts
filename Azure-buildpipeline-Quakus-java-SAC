@@ -1,0 +1,48 @@
+trigger:
+  - none
+
+resources:
+  - repo: self
+
+variables:
+  tag: '$(Build.BuildId)'
+
+stages:
+  - stage: Test
+    displayName: Run unit tests
+    jobs:
+      - job: Test
+        displayName: Test
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: Maven@3
+            displayName: 'Run Maven tests'
+            inputs:
+              mavenPomFile: 'pom.xml'  
+              options: 'test'  # Specify the Maven goals, in this case, 'test'
+
+  - stage: Build
+    displayName: Build image
+    jobs:
+      - job: Build
+        displayName: Build
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+         
+         - task: Maven@3
+           displayName: 'Build Maven project'
+           inputs:
+            mavenPomFile: 'pom.xml'
+            goals: 'package -Dquarkus.container-image.build=true'
+         - task: CopyFiles@2
+           displayName: 'Copy Dockerfile.jvm to build context'
+           inputs:
+            SourceFolder: 'src/main/docker'
+            Contents: 'Dockerfile.jvm'
+            TargetFolder: '$(Build.ArtifactStagingDirectory)'
+         - script: |
+                echo Building Docker image for SAC
+                docker build -f src/main/docker/Dockerfile.jvm -t quarkus/sac-jvm .
+          
